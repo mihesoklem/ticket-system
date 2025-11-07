@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+  Options -Indexes
+  
+  RewriteEngine On
+  
+  # Set HTTPS environment variable when X-Forwarded-Proto is https
+  RewriteCond %{HTTP:X-Forwarded-Proto} =https
+  RewriteRule .* - [E=HTTPS:on]
+  
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ index.php?/$1 [L,QSA]
+</IfModule>
+
+# Set SERVER variable for HTTPS when behind proxy
+SetEnvIf X-Forwarded-Proto "https" HTTPS=on
