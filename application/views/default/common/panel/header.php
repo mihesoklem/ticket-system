@@ -345,7 +345,7 @@ $limited_notifications = $this->Notification_model->notifications( ['limit' => 3
               </a>
             </li>
           <?php } ?>
-<?php if ( false ) { // Agent Performance feature - hidden for now ?>
+<?php if ( true ) { // Agent Performance feature - hidden for now ?>
             <li class="nav-item">
               <a href="<?php echo env_url( 'admin/agent-performance' ); ?>" class="nav-link <?php echo panel_activate_sub_child_page( 'agent-performance' ); ?>">
                 <i class="fas fa-chart-line nav-icon"></i>
