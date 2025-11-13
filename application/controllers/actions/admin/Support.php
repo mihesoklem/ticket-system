@@ -1813,7 +1813,15 @@ class Support extends MY_Controller {
         
         $data = $this->Support_model->ticket( $id );
         
-        if ( empty( $data ) ) r_error( 'invalid_req' );
+        // Check if ticket has at least one note (required before closing)
+        $notes_count = $this->Support_model->ticket_notes([
+            'ticket_id' => $id,
+            'count' => true
+        ]);
+        
+        if ( $notes_count == 0 ) {
+            r_error( 'note_required_close' );
+        }
         
         if ( $this->Support_model->close_ticket( $id ) )
         {

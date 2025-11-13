@@ -103,3 +103,6 @@ $lang['err_et_exists']              = 'Email template for this hook and language
 
 // Custom Fields:
 $lang['err_options_req']            = 'The Options field is required for the selected field type.';
+
+// Ticket Notes:
+$lang['err_note_required_close']   = 'Please add a note explaining the resolution before closing this ticket.';
