@@ -243,6 +243,11 @@ class Report_model extends MY_Model {
         $this->db->where('t.assigned_to IS NOT NULL', NULL, FALSE);
         $this->db->group_by('u.id');
         
+        // Add date filter if period is set
+        if ( $period > 0 ) {
+            $this->db->where('t.created_at >=', $period);
+        }
+        
         $query = $this->db->get();
         $agents = $query->result();
         
@@ -255,16 +260,25 @@ class Report_model extends MY_Model {
             
             // Count total assigned
             $this->db->where('assigned_to', $agent_id);
+            if ( $period > 0 ) {
+                $this->db->where('created_at >=', $period);
+            }
             $total = $this->db->count_all_results('tickets');
             
             // Count closed
             $this->db->where('assigned_to', $agent_id);
             $this->db->where('status', 0);
+            if ( $period > 0 ) {
+                $this->db->where('created_at >=', $period);
+            }
             $closed = $this->db->count_all_results('tickets');
             
             // Count open
             $this->db->where('assigned_to', $agent_id);
             $this->db->where('status', 1);
+            if ( $period > 0 ) {
+                $this->db->where('created_at >=', $period);
+            }
             $open = $this->db->count_all_results('tickets');
             
             // Build result object
@@ -298,16 +312,25 @@ class Report_model extends MY_Model {
     {
         // Count all assigned tickets
         $this->db->where('assigned_to !=', NULL);
+        if ( $period > 0 ) {
+            $this->db->where('created_at >=', $period);
+        }
         $total_assigned = $this->db->count_all_results('tickets');
         
         // Count all closed
         $this->db->where('assigned_to !=', NULL);
         $this->db->where('status', 0);
+        if ( $period > 0 ) {
+            $this->db->where('created_at >=', $period);
+        }
         $total_closed = $this->db->count_all_results('tickets');
         
         // Count all open
         $this->db->where('assigned_to !=', NULL);
         $this->db->where('status', 1);
+        if ( $period > 0 ) {
+            $this->db->where('created_at >=', $period);
+        }
         $total_open = $this->db->count_all_results('tickets');
         
         $summary = new stdClass();
