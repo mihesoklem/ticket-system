@@ -42,13 +42,40 @@ class AgentPerformance extends MY_Controller {
         $period = $this->input->get( 'period' );
         $period = ( ! empty( $period ) ) ? intval( $period ) : 0;
         
-        $stamp = $this->get_period_timestamp( $period );
+        // Get custom date range if provided
+        $from_date = $this->input->get( 'from_date' );
+        $to_date = $this->input->get( 'to_date' );
+        $custom_range = false;
         
-        // Get agent performance data
-        $data['data']['agents'] = $this->Report_model->agent_performance( $stamp );
-        $data['data']['summary'] = $this->Report_model->agent_performance_summary( $stamp );
-        $data['data']['period'] = $period;
-        $data['data']['period_label'] = $this->get_period_language_key( $period );
+        if ( ! empty( $from_date ) && ! empty( $to_date ) ) {
+            $from_timestamp = strtotime( $from_date . ' 00:00:00' );
+            $to_timestamp = strtotime( $to_date . ' 23:59:59' );
+            $custom_range = true;
+        } else {
+            $from_timestamp = 0;
+            $to_timestamp = 0;
+        }
+        
+        if ( $custom_range ) {
+            // Use custom date range
+            $data['data']['agents'] = $this->Report_model->agent_performance_custom( $from_timestamp, $to_timestamp );
+            $data['data']['summary'] = $this->Report_model->agent_performance_summary_custom( $from_timestamp, $to_timestamp );
+            $data['data']['period'] = 0;
+            $data['data']['period_label'] = date( 'M d, Y', $from_timestamp ) . ' - ' . date( 'M d, Y', $to_timestamp );
+            $data['data']['is_custom'] = true;
+            $data['data']['from_date'] = $from_date;
+            $data['data']['to_date'] = $to_date;
+        } else {
+            // Use preset period
+            $stamp = $this->get_period_timestamp( $period );
+            $data['data']['agents'] = $this->Report_model->agent_performance( $stamp );
+            $data['data']['summary'] = $this->Report_model->agent_performance_summary( $stamp );
+            $data['data']['period'] = $period;
+            $data['data']['period_label'] = $this->get_period_language_key( $period );
+            $data['data']['is_custom'] = false;
+            $data['data']['from_date'] = '';
+            $data['data']['to_date'] = '';
+        }
         
         $data['title'] = lang( 'agent_performance' );
         $data['view'] = 'agent_performance';

@@ -341,4 +341,142 @@ class Report_model extends MY_Model {
         
         return $summary;
     }
+
+    /**
+     * Get Agent Performance Report with Custom Date Range
+     *
+     * @param  integer $from_date
+     * @param  integer $to_date
+     * @return array
+     */
+    public function agent_performance_custom( $from_date = 0, $to_date = 0 )
+    {
+        // Get all users who have assigned tickets
+        $this->db->select('u.id, u.first_name, u.last_name', FALSE);
+        $this->db->from('users u');
+        $this->db->join('tickets t', 't.assigned_to = u.id', 'inner');
+        $this->db->where('t.assigned_to IS NOT NULL', NULL, FALSE);
+        
+        // Add custom date filter
+        if ( $from_date > 0 ) {
+            $this->db->where('t.created_at >=', $from_date);
+        }
+        if ( $to_date > 0 ) {
+            $this->db->where('t.created_at <=', $to_date);
+        }
+        
+        $this->db->group_by('u.id');
+        
+        $query = $this->db->get();
+        $agents = $query->result();
+        
+        $result = array();
+        
+        // For each agent, count their tickets
+        foreach ( $agents as $agent )
+        {
+            $agent_id = $agent->id;
+            
+            // Count total assigned
+            $this->db->where('assigned_to', $agent_id);
+            if ( $from_date > 0 ) {
+                $this->db->where('created_at >=', $from_date);
+            }
+            if ( $to_date > 0 ) {
+                $this->db->where('created_at <=', $to_date);
+            }
+            $total = $this->db->count_all_results('tickets');
+            
+            // Count closed
+            $this->db->where('assigned_to', $agent_id);
+            $this->db->where('status', 0);
+            if ( $from_date > 0 ) {
+                $this->db->where('created_at >=', $from_date);
+            }
+            if ( $to_date > 0 ) {
+                $this->db->where('created_at <=', $to_date);
+            }
+            $closed = $this->db->count_all_results('tickets');
+            
+            // Count open
+            $this->db->where('assigned_to', $agent_id);
+            $this->db->where('status', 1);
+            if ( $from_date > 0 ) {
+                $this->db->where('created_at >=', $from_date);
+            }
+            if ( $to_date > 0 ) {
+                $this->db->where('created_at <=', $to_date);
+            }
+            $open = $this->db->count_all_results('tickets');
+            
+            // Build result object
+            $obj = new stdClass();
+            $obj->id = $agent->id;
+            $obj->first_name = $agent->first_name;
+            $obj->last_name = $agent->last_name;
+            $obj->total_assigned = $total;
+            $obj->closed = $closed;
+            $obj->open = $open;
+            $obj->closure_rate = ( $total > 0 ) ? round( ( $closed / $total ) * 100, 1 ) : 0;
+            
+            $result[] = $obj;
+        }
+        
+        // Sort by closed DESC
+        usort( $result, function( $a, $b ) {
+            return $b->closed - $a->closed;
+        });
+        
+        return $result;
+    }
+
+    /**
+     * Get Agent Performance Summary with Custom Date Range (Totals)
+     *
+     * @param  integer $from_date
+     * @param  integer $to_date
+     * @return object
+     */
+    public function agent_performance_summary_custom( $from_date = 0, $to_date = 0 )
+    {
+        // Count all assigned tickets
+        $this->db->where('assigned_to !=', NULL);
+        if ( $from_date > 0 ) {
+            $this->db->where('created_at >=', $from_date);
+        }
+        if ( $to_date > 0 ) {
+            $this->db->where('created_at <=', $to_date);
+        }
+        $total_assigned = $this->db->count_all_results('tickets');
+        
+        // Count all closed
+        $this->db->where('assigned_to !=', NULL);
+        $this->db->where('status', 0);
+        if ( $from_date > 0 ) {
+            $this->db->where('created_at >=', $from_date);
+        }
+        if ( $to_date > 0 ) {
+            $this->db->where('created_at <=', $to_date);
+        }
+        $total_closed = $this->db->count_all_results('tickets');
+        
+        // Count all open
+        $this->db->where('assigned_to !=', NULL);
+        $this->db->where('status', 1);
+        if ( $from_date > 0 ) {
+            $this->db->where('created_at >=', $from_date);
+        }
+        if ( $to_date > 0 ) {
+            $this->db->where('created_at <=', $to_date);
+        }
+        $total_open = $this->db->count_all_results('tickets');
+        
+        $summary = new stdClass();
+        $summary->total_assigned = $total_assigned;
+        $summary->total_closed = $total_closed;
+        $summary->total_open = $total_open;
+        $summary->closure_rate = ( $total_assigned > 0 ) ? round( ( $total_closed / $total_assigned ) * 100, 1 ) : 0;
+        
+        return $summary;
+    }
 }
