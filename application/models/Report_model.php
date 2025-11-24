@@ -281,6 +281,14 @@ class Report_model extends MY_Model {
             }
             $open = $this->db->count_all_results('tickets');
             
+            // Count reopened
+            $this->db->where('assigned_to', $agent_id);
+            $this->db->where('reopened_awaiting', 1);
+            if ( $period > 0 ) {
+                $this->db->where('created_at >=', $period);
+            }
+            $reopened = $this->db->count_all_results('tickets');
+            
             // Build result object
             $obj = new stdClass();
             $obj->id = $agent->id;
@@ -289,7 +297,9 @@ class Report_model extends MY_Model {
             $obj->total_assigned = $total;
             $obj->closed = $closed;
             $obj->open = $open;
+            $obj->reopened = $reopened;
             $obj->closure_rate = ( $total > 0 ) ? round( ( $closed / $total ) * 100, 1 ) : 0;
+            $obj->reopened_rate = ( $total > 0 ) ? round( ( $reopened / $total ) * 100, 1 ) : 0;
             
             $result[] = $obj;
         }
@@ -333,11 +343,21 @@ class Report_model extends MY_Model {
         }
         $total_open = $this->db->count_all_results('tickets');
         
+        // Count all reopened
+        $this->db->where('assigned_to !=', NULL);
+        $this->db->where('reopened_awaiting', 1);
+        if ( $period > 0 ) {
+            $this->db->where('created_at >=', $period);
+        }
+        $total_reopened = $this->db->count_all_results('tickets');
+        
         $summary = new stdClass();
         $summary->total_assigned = $total_assigned;
         $summary->total_closed = $total_closed;
         $summary->total_open = $total_open;
+        $summary->total_reopened = $total_reopened;
         $summary->closure_rate = ( $total_assigned > 0 ) ? round( ( $total_closed / $total_assigned ) * 100, 1 ) : 0;
+        $summary->reopened_rate = ( $total_assigned > 0 ) ? round( ( $total_reopened / $total_assigned ) * 100, 1 ) : 0;
         
         return $summary;
     }
@@ -409,6 +429,14 @@ class Report_model extends MY_Model {
             }
             $open = $this->db->count_all_results('tickets');
             
+            // Count reopened
+            $this->db->where('assigned_to', $agent_id);
+            $this->db->where('reopened_awaiting', 1);
+            if ( $period > 0 ) {
+                $this->db->where('created_at >=', $period);
+            }
+            $reopened = $this->db->count_all_results('tickets');
+            
             // Build result object
             $obj = new stdClass();
             $obj->id = $agent->id;
@@ -417,7 +445,9 @@ class Report_model extends MY_Model {
             $obj->total_assigned = $total;
             $obj->closed = $closed;
             $obj->open = $open;
+            $obj->reopened = $reopened;
             $obj->closure_rate = ( $total > 0 ) ? round( ( $closed / $total ) * 100, 1 ) : 0;
+            $obj->reopened_rate = ( $total > 0 ) ? round( ( $reopened / $total ) * 100, 1 ) : 0;
             
             $result[] = $obj;
         }
@@ -471,11 +501,24 @@ class Report_model extends MY_Model {
         }
         $total_open = $this->db->count_all_results('tickets');
         
+        // Count all reopened
+        $this->db->where('assigned_to !=', NULL);
+        $this->db->where('reopened_awaiting', 1);
+        if ( $from_date > 0 ) {
+            $this->db->where('created_at >=', $from_date);
+        }
+        if ( $to_date > 0 ) {
+            $this->db->where('created_at <=', $to_date);
+        }
+        $total_reopened = $this->db->count_all_results('tickets');
+        
         $summary = new stdClass();
         $summary->total_assigned = $total_assigned;
         $summary->total_closed = $total_closed;
         $summary->total_open = $total_open;
+        $summary->total_reopened = $total_reopened;
         $summary->closure_rate = ( $total_assigned > 0 ) ? round( ( $total_closed / $total_assigned ) * 100, 1 ) : 0;
+        $summary->reopened_rate = ( $total_assigned > 0 ) ? round( ( $total_reopened / $total_assigned ) * 100, 1 ) : 0;
         
         return $summary;
     }

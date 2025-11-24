@@ -367,6 +367,21 @@ class Support extends MY_Controller {
         $to_fetch['priority'] = $priority;
         $to_count['priority'] = $priority;
         
+        $assigned_to = intval( get( 'assigned_to' ) );
+        $reopened_awaiting = intval( get( 'reopened_awaiting' ) );
+        
+        if ( ! empty( $assigned_to ) )
+        {
+            $to_fetch['assigned_to'] = $assigned_to;
+            $to_count['assigned_to'] = $assigned_to;
+        }
+        
+        if ( $reopened_awaiting !== 0 )
+        {
+            $to_fetch['reopened_awaiting'] = $reopened_awaiting;
+            $to_count['reopened_awaiting'] = $reopened_awaiting;
+        }
+        
         if ( $type === 'all' )
         {
             $config['base_url'] = env_url( 'admin/tickets/all' );

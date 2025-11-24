@@ -611,4 +611,6 @@ $lang['agent_performance']       = 'Agent Performance';
 $lang['agent_name']              = 'Agent Name';
 $lang['total_assigned']          = 'Total Assigned';
 $lang['closure_rate']            = 'Closure Rate';
+$lang['reopened']                = 'Reopened';
+$lang['reopened_rate']          = 'Reopened Rate';
 $lang['open']                   = 'Open';

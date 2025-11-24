@@ -383,6 +383,16 @@ class Support_model extends MY_Model {
             $data['where']['c.department_id'] = $options['department_id'];
         }
         
+        if ( ! empty( $options['assigned_to'] ) )
+        {
+            $data['where']['t.assigned_to'] = $options['assigned_to'];
+        }
+        
+        if ( ! empty( $options['reopened_awaiting'] ) )
+        {
+            $data['where']['t.reopened_awaiting'] = $options['reopened_awaiting'];
+        }
+        
         if ( @$options['status'] !== null ) $data['where']['c.status'] = $options['status'];
         
         if ( ! empty( $options['limit'] ) ) $data['limit'] = $options['limit'];
@@ -1671,6 +1681,16 @@ class Support_model extends MY_Model {
         if ( ! empty( $options['department_id'] ) )
         {
             $data['where']['t.department_id'] = $options['department_id'];
+        }
+        
+        if ( ! empty( $options['assigned_to'] ) )
+        {
+            $data['where']['t.assigned_to'] = $options['assigned_to'];
+        }
+        
+        if ( ! empty( $options['reopened_awaiting'] ) )
+        {
+            $data['where']['t.reopened_awaiting'] = $options['reopened_awaiting'];
         }
         
         if ( @$options['status'] !== null ) $data['where']['t.status'] = $options['status'];

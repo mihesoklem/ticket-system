@@ -59,8 +59,10 @@
                     <th><?php echo lang( 'agent_name' ); ?></th>
                     <th class="text-center"><?php echo lang( 'total_assigned' ); ?></th>
                     <th class="text-center"><?php echo lang( 'closed' ); ?></th>
+                    <th class="text-center"><?php echo lang( 'reopened' ); ?></th>
                     <th class="text-center"><?php echo lang( 'open' ); ?></th>
                     <th class="text-center"><?php echo lang( 'closure_rate' ); ?></th>
+                    <th class="text-center"><?php echo lang( 'reopened_rate' ); ?></th>
                   </tr>
                 </thead>
                 <tbody class="records-tbody text-sm">
@@ -83,10 +85,22 @@
                       <span class="badge badge-success"><?php echo intval( $agent->closed ); ?></span>
                     </td>
                     <td class="text-center">
+                      <?php if ( $agent->reopened > 0 ): ?>
+                        <a href="<?php echo env_url( 'admin/tickets/all?assigned_to=' . $agent->id . '&reopened_awaiting=1' ); ?>" target="_blank" title="View reopened tickets for this agent">
+                          <span class="badge badge-danger" style="cursor: pointer;"><?php echo intval( $agent->reopened ); ?></span>
+                        </a>
+                      <?php else: ?>
+                        <span class="badge badge-danger">0</span>
+                      <?php endif; ?>
+                    </td>
+                    <td class="text-center">
                       <span class="badge badge-warning"><?php echo intval( $agent->open ); ?></span>
                     </td>
                     <td class="text-center">
                       <span class="badge badge-primary"><?php echo number_format( $agent->closure_rate, 1 ) . '%'; ?></span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge badge-danger"><?php echo number_format( $agent->reopened_rate, 1 ) . '%'; ?></span>
                     </td>
                   </tr>
                   <?php endforeach; ?>
@@ -101,10 +115,22 @@
                       <span class="badge badge-success"><?php echo intval( $summary->total_closed ); ?></span>
                     </td>
                     <td class="text-center">
+                      <?php if ( $summary->total_reopened > 0 ): ?>
+                        <a href="<?php echo env_url( 'admin/tickets/all?reopened_awaiting=1' ); ?>" target="_blank" title="View all reopened tickets">
+                          <span class="badge badge-danger" style="cursor: pointer;"><?php echo intval( $summary->total_reopened ); ?></span>
+                        </a>
+                      <?php else: ?>
+                        <span class="badge badge-danger">0</span>
+                      <?php endif; ?>
+                    </td>
+                    <td class="text-center">
                       <span class="badge badge-warning"><?php echo intval( $summary->total_open ); ?></span>
                     </td>
                     <td class="text-center">
                       <span class="badge badge-primary"><?php echo number_format( $summary->closure_rate, 1 ) . '%'; ?></span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge badge-danger"><?php echo number_format( $summary->reopened_rate, 1 ) . '%'; ?></span>
                     </td>
                   </tr>
                 </tbody>
