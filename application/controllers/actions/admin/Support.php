@@ -1384,6 +1384,9 @@ class Support extends MY_Controller {
                         'assigned_by' => 'admin'
                     ]);
                 }
+
+                    // Notify area manager
+                    notify_area_manager( $data_id, 'assigned' );
                 
                 send_notification( "{$type}_assigned", $togo, $user_id, 1 );
 
@@ -1398,11 +1401,30 @@ class Support extends MY_Controller {
                     
                     $subject = $template->subject;
                     
-                    $message = replace_placeholders( $template->template, [
+                    // Load ticket details for placeholders
+                    $t_placeholders = [
                         '{USER_NAME}' => $user->first_name . ' ' . $user->last_name,
                         '{' . strtoupper( $type ) .'_URL}' => env_url( $togo ),
                         '{SITE_NAME}' => db_config( 'site_name' )
-                    ]);
+                    ];
+                    
+                    if ( $type === 'ticket' )
+                    {
+                        $this->db->select( 'subject, priority, message' );
+                        $this->db->where( 'id', $data_id );
+                        $t_info = $this->db->get( 'tickets' )->row();
+                        if ( ! empty( $t_info ) )
+                        {
+                            $t_placeholders['{TICKET_ID}'] = $data_id;
+                            $t_placeholders['{TICKET_SUBJECT}'] = isset( $t_info->subject ) ? $t_info->subject : '';
+                            $t_placeholders['{TICKET_PRIORITY}'] = isset( $t_info->priority ) ? ucfirst( $t_info->priority ) : '';
+                            $t_placeholders['{TICKET_MESSAGE}'] = isset( $t_info->message ) ? $t_info->message : '';
+                        }
+                        $t_placeholders['{SHOP_NAME}'] = get_ticket_shop_name( $data_id );
+                    }
+                    
+                    $subject = replace_placeholders( $template->subject, $t_placeholders );
+                    $message = replace_placeholders( $template->template, $t_placeholders );
                     
                     $this->load->library( 'ZMailer' );
 
@@ -1451,6 +1473,9 @@ class Support extends MY_Controller {
         
         if ( post( 'solved' ) && ! post( 'reply' ) )
         {
+            // Always require a reply when marking as solved
+            r_error( 'reply_required_before_close' );
+            
             if ( $ticket->sub_status != 3 )
             {
                 $is_read = ( $ticket->last_reply_area == 2 ) ? 1 : 0;
@@ -1477,6 +1502,9 @@ class Support extends MY_Controller {
                     'solved_by' => 'admin'
                 ]);
                 
+
+                // Notify area manager
+                notify_area_manager( $ticket_id, 'solved' );
                 r_s_jump( "admin/tickets/ticket/{$ticket_id}", 'ticket_solved' );
             }
             
@@ -1524,16 +1552,25 @@ class Support extends MY_Controller {
                     'replied_by' => 'admin'
                 ]);
                 
+
+                // Notify area manager
+                notify_area_manager( $ticket_id, 'replied' );
                 if ( $ticket->user_id == null )
                 {
                     send_guest_reply_notification( $ticket_id, $id );
                 }
                 else
                 {
-                    if ( ! send_reply_notification( $ticket->user_id, $ticket_id, $id ) )
+                    if ( ! send_reply_notification( $ticket->user_id, $ticket_id, $id, 'agent', $my_id ) )
                     {
                         r_error( 'ticket_fe' );
                     }
+                }
+                
+                // Notify the assigned IT person (if different from the replier)
+                if ( ! empty( $ticket->assigned_to ) && $ticket->assigned_to != $my_id )
+                {
+                    send_reply_notification( $ticket->assigned_to, $ticket_id, $id, 'user', $my_id );
                 }
                 
                 if ( ! empty( $_FILES ) )
@@ -1761,6 +1798,9 @@ class Support extends MY_Controller {
                 }
                 
                 inform_department_users( $department, $id );
+
+                // Notify area manager
+                notify_area_manager( $id, 'created' );
                 
                 r_s_jump( "admin/tickets/ticket/{$id}", 'ticket_created' );
             }
@@ -1794,6 +1834,9 @@ class Support extends MY_Controller {
             $this->zwebhook->ticket_event('reopened', $data, [
                 'reopened_by' => 'admin'
             ]);
+
+                // Notify area manager
+                notify_area_manager( $id, 'reopened' );
             r_s_jump( "admin/tickets/ticket/{$id}", 'ticket_reopened' );
         }
         
@@ -1810,27 +1853,63 @@ class Support extends MY_Controller {
         check_action_authorization( 'tickets' );
         
         $id = intval( post( 'id' ) );
+        $closing_reply = trim( post( 'closing_reply' ) );
+        
+        // Closing reply is mandatory
+        if ( empty( $closing_reply ) )
+        {
+            r_error( 'reply_required_before_close' );
+        }
         
         $data = $this->Support_model->ticket( $id );
         
-        // Check if ticket has at least one note (required before closing)
-        $notes_count = $this->Support_model->ticket_notes([
-            'ticket_id' => $id,
-            'count' => true
-        ]);
+        if ( empty( $data ) ) r_error( 'invalid_req' );
         
-        if ( $notes_count == 0 ) {
-            r_error( 'note_required_close' );
-        }
+        // Save the closing reply
+        $my_id = $this->zuser->get( 'id' );
+        $reply_data = [
+            'ticket_id' => $id,
+            'user_id' => $my_id,
+            'message' => do_secure( $closing_reply, true ),
+            'attachment' => '',
+            'attachment_name' => '',
+            'replied_at' => time()
+        ];
+        
+        $reply_id = $this->Support_model->add_reply( $reply_data );
+        
+        // Update ticket status
+        $this->Support_model->update_ticket([
+            'sub_status' => 2,
+            'last_agent_replied_at' => time(),
+            'last_reply_area' => 1,
+            'is_read' => 0
+        ], $id );
         
         if ( $this->Support_model->close_ticket( $id ) )
         {
+            log_ticket_activity( 'ticket_replied_agent', $id );
             log_ticket_activity( 'ticket_closed_agent', $id );
+            
+            // Notify the ticket creator
+            if ( ! empty( $data->user_id ) && ! empty( $reply_id ) )
+            {
+                send_reply_notification( $data->user_id, $id, $reply_id, 'agent', $my_id );
+            }
+            
+            // Notify assigned IT (if different from closer)
+            if ( ! empty( $data->assigned_to ) && $data->assigned_to != $my_id )
+            {
+                send_reply_notification( $data->assigned_to, $id, $reply_id, 'user', $my_id );
+            }
             
             // Send webhook notification
             $this->zwebhook->ticket_event('closed', $data, [
                 'closed_by' => 'admin'
             ]);
+
+            // Notify area manager
+            notify_area_manager( $id, 'closed' );
             r_s_jump( "admin/tickets/ticket/{$id}", 'ticket_closed' );
         }
         

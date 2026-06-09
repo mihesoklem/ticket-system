@@ -74,6 +74,7 @@ $route['faqs']                                      = 'support/faqs';
 
 // @version 1.6
 $route['create_ticket']                             = 'support/create_ticket';
+$route['create_ticket_new']                        = 'support/create_ticket_new';
 $route['tverify/(:num)/(:any)']                     = 'home/tverify/$1/$2';
 
 // @version 1.4
@@ -107,6 +108,8 @@ $route['admin/tickets/history/(:num)/page']         = 'admin/support/ticket_hist
 
 // @version 1.1
 $route['admin/tickets/create_ticket']               = 'admin/support/create_ticket';
+$route['admin/tickets/create_ticket_new']             = 'admin/support/create_ticket_new';
+$route['admin/tickets/quick_issue_buttons']           = 'admin/support/quick_issue_buttons';
 
 // @version 1.4
 $route['admin/chats/all']                           = 'admin/support/chats/all';

@@ -143,6 +143,7 @@ class Support extends MY_Controller {
     public function create_ticket()
     {
         $this->load->model( 'Custom_field_model' );
+        $this->load->model( 'Area_it_model' );
         
         $this->set_user_reference( 'tickets' );
         $data['data']['gr_field'] = true;
@@ -150,8 +151,89 @@ class Support extends MY_Controller {
         $data['data']['fields'] = $this->Custom_field_model->custom_fields( 'ASC', 1 );
         $data['data']['form_class'] = 'mb-3';
         $data['data']['label_required_class'] = 'text-danger';
+        
+        $areas = $this->Area_it_model->areas();
+        $area_it_map = [];
+        if ( ! empty( $areas ) )
+        {
+            foreach ( $areas as $area )
+            {
+                $staff = $this->Area_it_model->get_staff_by_area_id( $area->id );
+                $staff_list = [];
+                foreach ( $staff as $s )
+                {
+                    $staff_list[] = [
+                        'user_id' => $s->user_id,
+                        'name' => $s->first_name . ' ' . $s->last_name
+                    ];
+                }
+                $area_it_map[$area->area_prefix] = $staff_list;
+            }
+        }
+        $data['data']['area_it_map'] = json_encode( $area_it_map );
+        
+        $shop_field = $this->Custom_field_model->custom_field( 3 );
+        $data['data']['shop_options'] = [];
+        if ( ! empty( $shop_field ) && ! empty( $shop_field->options ) )
+        {
+            $data['data']['shop_options'] = array_map( 'trim', explode( ',', $shop_field->options ) );
+        }
+        
         $data['title'] = lang( 'create_ticket' );
         $data['view'] = 'create_ticket';
+        
+        $this->load_public_template( $data );
+    }
+
+    /**
+     * Create Ticket Page (New Interface)
+     *
+     * @return void
+     */
+    public function create_ticket_new()
+    {
+        $this->load->model( 'Custom_field_model' );
+        $this->load->model( 'Area_it_model' );
+        $this->load->model( 'Ticket_quick_issue_model' );
+        
+        $this->set_user_reference( 'tickets' );
+        $data['data']['gr_field'] = true;
+        $data['data']['departments'] = $this->Support_model->departments( 1 );
+        $data['data']['fields'] = $this->Custom_field_model->custom_fields( 'ASC', 1 );
+        $data['data']['form_class'] = 'mb-3';
+        $data['data']['label_required_class'] = 'text-danger';
+        
+        $data['data']['quick_issues'] = $this->Ticket_quick_issue_model->get_all_active();
+        
+        $areas = $this->Area_it_model->areas();
+        $area_it_map = [];
+        if ( ! empty( $areas ) )
+        {
+            foreach ( $areas as $area )
+            {
+                $staff = $this->Area_it_model->get_staff_by_area_id( $area->id );
+                $staff_list = [];
+                foreach ( $staff as $s )
+                {
+                    $staff_list[] = [
+                        'user_id' => $s->user_id,
+                        'name' => $s->first_name . ' ' . $s->last_name
+                    ];
+                }
+                $area_it_map[$area->area_prefix] = $staff_list;
+            }
+        }
+        $data['data']['area_it_map'] = json_encode( $area_it_map );
+        
+        $shop_field = $this->Custom_field_model->custom_field( 3 );
+        $data['data']['shop_options'] = [];
+        if ( ! empty( $shop_field ) && ! empty( $shop_field->options ) )
+        {
+            $data['data']['shop_options'] = array_map( 'trim', explode( ',', $shop_field->options ) );
+        }
+        
+        $data['title'] = lang( 'create_ticket' );
+        $data['view'] = 'create_ticket_new';
         
         $this->load_public_template( $data );
     }

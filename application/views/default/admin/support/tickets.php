@@ -12,6 +12,17 @@
             <h3 class="card-title"><?php echo lang( 'search_tickets' ); ?></h3>
             <div class="card-tools ml-auto">
               <form action="<?php echo env_url( 'admin/tickets/' . html_escape( $this->uri->segment( 3 ) ) ); ?>" class="d-inline-block form-inline mr-2">
+                <select class="form-control text-sm search-field mr-1 mb-2 mb-sm-0" name="assigned_to">
+                  <option value="">All Assigned</option>
+                  <option value="-1" <?php echo ( get( 'assigned_to' ) == '-1' ) ? 'selected' : ''; ?>>Unassigned</option>
+                  <?php if ( ! empty( $team_users ) ) {
+                    foreach ( $team_users as $tu ) { ?>
+                      <option value="<?php echo html_escape( $tu->id ); ?>" <?php echo ( get( 'assigned_to' ) == $tu->id ) ? 'selected' : ''; ?>>
+                        <?php echo html_escape( $tu->first_name . ' ' . $tu->last_name ); ?>
+                      </option>
+                  <?php }
+                  } ?>
+                </select>
                 <input
                   class="form-control text-sm search-field mr-1 mb-2 mb-sm-0"
                   name="search"

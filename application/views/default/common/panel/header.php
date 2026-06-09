@@ -344,12 +344,38 @@ $limited_notifications = $this->Notification_model->notifications( ['limit' => 3
                 <p><?php echo lang( 'departments' ); ?></p>
               </a>
             </li>
+          <?php if ( $this->zuser->has_permission( 'departments' ) ) { ?>
+            <li class="nav-item">
+              <a href="<?php echo env_url( 'admin/area_managers' ); ?>" class="nav-link <?php echo panel_activate_sub_child_page( 'area_managers' ); ?>">
+                <i class="fas fa-user-tie nav-icon"></i>
+                <p>Area Managers</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="<?php echo env_url( 'admin/area_it' ); ?>" class="nav-link <?php echo panel_activate_sub_child_page( 'area_it' ); ?>">
+                <i class="fas fa-laptop-code nav-icon"></i>
+                <p>Area IT Staff</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="<?php echo env_url( 'admin/audit_log' ); ?>" class="nav-link <?php echo panel_activate_sub_child_page( 'audit_log' ); ?>">
+                <i class="fas fa-history nav-icon"></i>
+                <p>Audit Log</p>
+              </a>
+            </li>
+          <?php } ?>
           <?php } ?>
 <?php if ( true ) { // Agent Performance feature - hidden for now ?>
             <li class="nav-item">
               <a href="<?php echo env_url( 'admin/agent-performance' ); ?>" class="nav-link <?php echo panel_activate_sub_child_page( 'agent-performance' ); ?>">
                 <i class="fas fa-chart-line nav-icon"></i>
                 <p><?php echo lang( 'agent_performance' ); ?></p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="<?php echo env_url( 'admin/ticket_analytics' ); ?>" class="nav-link <?php echo panel_activate_child_page( 'ticket_analytics' ); ?>">
+                <i class="nav-icon fas fa-chart-bar"></i>
+                <p>Ticket Analytics</p>
               </a>
             </li>
           <?php } ?>
@@ -451,6 +477,7 @@ $limited_notifications = $this->Notification_model->notifications( ['limit' => 3
                 <p><?php echo lang( 'reports' ); ?></p>
               </a>
             </li>
+
           <?php } ?>
           
           <?php if ( $this->zuser->has_permission( 'users' ) ) { ?>

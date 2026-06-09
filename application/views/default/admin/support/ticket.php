@@ -389,14 +389,9 @@
             </ul>
             <div class="clearfix text-center">
               <?php if ( $ticket->status != 0 ) { ?>
-                <form class="z-form d-inline-block" method="post" action="<?php admin_action( 'support/close_ticket' ); ?>" data-csrf="manual">
-                  <div class="response-message c-alert-spacing"></div>
-                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-                  <button type="submit" class="mt-3 mr-1 btn btn-danger text-sm">
+                <button class="mt-3 mr-1 btn btn-danger text-sm" data-toggle="modal" data-target="#close-ticket-modal">
                     <i class="fas fa-times-circle mr-2"></i> <?php echo lang( 'close_ticket' ); ?>
                   </button>
-                  <input type="hidden" name="id" value="<?php echo html_escape( $ticket->id ); ?>">
-                </form>
                 <button class="mr-1 mt-3 btn btn-primary text-sm" data-toggle="modal" data-target="#assign-user">
                   <i class="fas fa-user mr-2"></i> <?php echo lang( 'assign' ); ?>
                 </button>
@@ -512,3 +507,30 @@
 <!-- /.content -->
 
 <?php load_modals( ['admin/assign_user', 'admin/ticket_attachments', 'admin/ticket_resend_access', 'admin/add_ticket_note', 'read_lg', 'delete', 'admin/delete_ticket_note'] ); ?>
+<!-- Close Ticket Modal -->
+<div class="modal fade" id="close-ticket-modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form class="z-form" method="post" action="<?php admin_action( 'support/close_ticket' ); ?>" data-csrf="manual">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+        <input type="hidden" name="id" value="<?php echo html_escape( $ticket->id ); ?>">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i> Close Ticket #<?php echo html_escape( $ticket->id ); ?></h5>
+          <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="response-message"></div>
+          <p class="text-muted">Please describe what was done to resolve this issue. This reply will be sent to the user.</p>
+          <div class="form-group">
+            <label class="font-weight-bold">Closing Reply <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="closing_reply" rows="5" required placeholder="e.g. We replaced the faulty printer cable and tested printing. Issue is now resolved."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger"><i class="fas fa-times-circle mr-1"></i> Close & Reply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

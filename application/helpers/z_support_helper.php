@@ -588,13 +588,42 @@ if ( ! function_exists( 'send_notifications_to_department_users' ) )
             
             if ( empty( $template ) ) return 'missing_template';
             
-            $subject = replace_placeholders( $template->subject, ['{DEPARTMENT_NAME}' => $data->name] );
+            // Subject will be replaced after shop_name is loaded
+            $subject_template = $template->subject;
+            
+            // Load ticket details for email placeholders (direct query to bypass permission checks)
+            $ticket_message = '';
+            $ticket_subject_val = '';
+            $ticket_priority_val = '';
+            $ticket_id_val = '';
+            if ( preg_match( '/ticket\/(\d+)/', $location, $t_matches ) )
+            {
+                $ticket_id_val = intval( $t_matches[1] );
+                $ci->db->select( 'subject, priority, message' );
+                $ci->db->where( 'id', $ticket_id_val );
+                $t_data = $ci->db->get( 'tickets' )->row();
+                if ( ! empty( $t_data ) )
+                {
+                    $ticket_message = isset( $t_data->message ) ? $t_data->message : '';
+                    $ticket_subject_val = isset( $t_data->subject ) ? $t_data->subject : '';
+                    $ticket_priority_val = isset( $t_data->priority ) ? ucfirst( $t_data->priority ) : '';
+                }
+            }
+            
+            $shop_name_val = ! empty( $ticket_id_val ) ? get_ticket_shop_name( $ticket_id_val ) : '';
             
             $for_message = [
                 '{DEPARTMENT_NAME}' => $data->name,
                 '{' . $options['location_placeholder'] . '}' => env_url( $location ),
+                '{TICKET_ID}' => $ticket_id_val,
+                '{TICKET_SUBJECT}' => $ticket_subject_val,
+                '{TICKET_PRIORITY}' => $ticket_priority_val,
+                '{TICKET_MESSAGE}' => $ticket_message,
+                '{SHOP_NAME}' => $shop_name_val,
                 '{SITE_NAME}' => db_config( 'site_name' )
             ];
+            
+            $subject = replace_placeholders( $subject_template, $for_message );
             
             $ci->load->library( 'ZMailer' );
         }
@@ -746,7 +775,7 @@ if ( ! function_exists( 'inform_department_users' ) )
  */
 if ( ! function_exists( 'send_reply_notification' ) )
 {
-    function send_reply_notification( $user_id, $ticket_id, $reply_id, $postfix = 'agent' )
+    function send_reply_notification( $user_id, $ticket_id, $reply_id, $postfix = 'agent', $replier_id = 0 )
     {
         $ci =& get_instance();
         $status = true;
@@ -761,6 +790,17 @@ if ( ! function_exists( 'send_reply_notification' ) )
         $user = $ci->User_model->get_by_id( $user_id );
 
         if ( empty( $user ) ) return 'invalid_req';
+        
+        // Get replier name
+        $replier_name = 'Someone';
+        if ( ! empty( $replier_id ) )
+        {
+            $replier = $ci->User_model->get_by_id( $replier_id );
+            if ( ! empty( $replier ) )
+            {
+                $replier_name = $replier->first_name . ' ' . $replier->last_name;
+            }
+        }
 
         $area = ( $postfix === 'agent' ) ? 'user' : 'admin';
         $for_team_member = ( $postfix !== 'agent' ) ? 1 : 0;
@@ -778,13 +818,26 @@ if ( ! function_exists( 'send_reply_notification' ) )
 
             if ( empty( $template ) ) return false;
             
-            $subject = $template->subject;
+            $reply_shop_name = get_ticket_shop_name( $ticket_id );
             
-            $message = replace_placeholders( $template->template, [
+            // Get ticket details for placeholders
+            $ci->db->select( 'subject, priority' );
+            $ci->db->where( 'id', $ticket_id );
+            $t_info = $ci->db->get( 'tickets' )->row();
+            
+            $reply_placeholders = [
                 '{USER_NAME}' => $user->first_name . ' ' . $user->last_name,
+                '{REPLIER_NAME}' => $replier_name,
+                '{TICKET_ID}' => $ticket_id,
+                '{TICKET_SUBJECT}' => ! empty( $t_info->subject ) ? $t_info->subject : '',
                 '{TICKET_URL}' => env_url( $location ),
+                '{SHOP_NAME}' => $reply_shop_name,
                 '{SITE_NAME}' => db_config( 'site_name' )
-            ]);
+            ];
+            
+            $subject = replace_placeholders( $template->subject, $reply_placeholders );
+            
+            $message = replace_placeholders( $template->template, $reply_placeholders );
             
             $ci->load->library( 'ZMailer' );
 
@@ -1109,5 +1162,237 @@ if ( ! function_exists( 'ticket_replies_count' ) )
     function ticket_replies_count( $ticket_id )
     {
         return get_sm_object()->ticket_replies_count( $ticket_id );
+    }
+}
+
+/**
+ * Send User Ticket Confirmation
+ *
+ * Use to send a confirmation email to registered users
+ * when they create a new ticket.
+ *
+ * @param   integer $user_id
+ * @param   integer $ticket_id
+ * @param   object  $ticket
+ * @return  boolean
+ * @version 1.0
+ */
+if ( ! function_exists( 'send_user_ticket_confirmation' ) )
+{
+    function send_user_ticket_confirmation( $user_id, $ticket_id, $ticket )
+    {
+        $status = true;
+        
+        if ( is_email_settings_filled() && is_notifications_enabled( $user_id ) )
+        {
+            $ci =& get_instance();
+            
+            $ci->load->model( 'User_model' );
+            $user = $ci->User_model->get_by_id( $user_id );
+            
+            if ( empty( $user ) ) return false;
+            
+            $hook = 'ticket_created_user';
+            $language = get_user_closer_language( $user->language );
+            $template = $ci->Tool_model->email_template_by_hook_and_lang( $hook, $language );
+            
+            if ( empty( $template ) ) return false;
+            
+            $subject = $template->subject;
+            $ticket_url = env_url( "user/support/tickets/all" );
+            // Individual ticket viewing URL: user/support/ticket/$ticket_id}" );
+            
+            // Get ticket details directly from database
+            $ci->db->select('t.subject, t.priority, t.message, t.created_at, td.name as department');
+            $ci->db->from('tickets t');
+            $ci->db->join('tickets_departments td', 'td.id = t.department_id', 'left');
+            $ci->db->where('t.id', $ticket_id);
+            $query = $ci->db->get();
+            
+            if ( $query->num_rows() > 0 )
+            {
+                $ticket_data = $query->row();
+                $ticket_subject = $ticket_data->subject;
+                $ticket_priority = ucfirst( $ticket_data->priority );
+                $ticket_department = $ticket_data->department;
+                $ticket_created = date( 'F d, Y H:i A', $ticket_data->created_at );
+                $ticket_message = isset( $ticket_data->message ) ? $ticket_data->message : '';
+            }
+            else
+            {
+                $ticket_subject = isset( $ticket->subject ) ? $ticket->subject : '';
+                $ticket_priority = isset( $ticket->priority ) ? ucfirst( $ticket->priority ) : '';
+                $ticket_department = isset( $ticket->department ) ? $ticket->department : '';
+                $ticket_created = isset( $ticket->created_at ) ? date( 'F d, Y H:i A', $ticket->created_at ) : '';
+                $ticket_message = isset( $ticket->message ) ? $ticket->message : '';
+            }
+            
+            $shop_name = get_ticket_shop_name( $ticket_id );
+            
+            $placeholders = [
+                '{USER_NAME}' => $user->first_name . ' ' . $user->last_name,
+                '{TICKET_ID}' => $ticket_id,
+                '{TICKET_SUBJECT}' => $ticket_subject,
+                '{TICKET_PRIORITY}' => $ticket_priority,
+                '{DEPARTMENT_NAME}' => $ticket_department,
+                '{CREATED_DATE}' => $ticket_created,
+                '{TICKET_LINK}' => $ticket_url, // Changed from TICKET_URL to TICKET_LINK to match custom template
+                '{TICKET_URL}' => $ticket_url,
+                '{TICKET_MESSAGE}' => $ticket_message,
+                '{SHOP_NAME}' => $shop_name,
+                '{SITE_NAME}' => db_config( 'site_name' )
+            ];
+            
+            $subject = replace_placeholders( $subject, $placeholders );
+            
+            $message = replace_placeholders( $template->template, $placeholders );
+            
+            $ci->load->library( 'ZMailer' );
+            
+            if ( ! $ci->zmailer->send_email( $user->email_address, $subject, $message ) )
+            {
+                $status = false;
+            }
+        }
+        
+        return $status;
+    }
+}
+
+/**
+ * Notify Area Manager(s)
+ *
+ * Sends email notifications to ALL area managers assigned to the
+ * ticket's shop. Fails silently if no mapping exists.
+ *
+ * @param  integer $ticket_id   The ticket ID
+ * @param  string  $event_type  The event type (created, replied, assigned, solved, closed, reopened)
+ * @return boolean
+ * @version 1.1
+ */
+if ( ! function_exists( 'notify_area_manager' ) )
+{
+    function notify_area_manager( $ticket_id, $event_type = 'created' )
+    {
+        $ci =& get_instance();
+        
+        // Fail silently if email settings are not configured
+        if ( ! is_email_settings_filled() ) return false;
+        
+        $ci->load->model( 'Support_model' );
+        $ci->load->model( 'Area_manager_model' );
+        $ci->load->model( 'Custom_field_model' );
+        $ci->load->model( 'Tool_model' );
+        
+        // Get ticket
+        $ticket = $ci->Support_model->ticket( $ticket_id );
+        if ( empty( $ticket ) ) return false;
+        
+        // Get custom fields for this ticket to find Shop Name
+        $custom_fields_data = $ci->Custom_field_model->custom_fields_data( $ticket_id );
+        
+        $shop_name = '';
+        if ( ! empty( $custom_fields_data ) )
+        {
+            foreach ( $custom_fields_data as $field )
+            {
+                if ( strtolower( trim( $field->name ) ) === 'shop name' )
+                {
+                    $shop_name = trim( $field->value );
+                    break;
+                }
+            }
+        }
+        
+        // No shop name found - fail silently
+        if ( empty( $shop_name ) ) return false;
+        
+        // Look up ALL area managers for this shop
+        $managers = $ci->Area_manager_model->get_managers_by_shop( $shop_name );
+        
+        // No managers assigned - fail silently
+        if ( empty( $managers ) ) return false;
+        
+        // Get email template
+        $hook = 'area_manager_ticket_notification';
+        $template = $ci->Tool_model->email_template_by_hook_and_lang( $hook, config_item( 'language' ) );
+        
+        if ( empty( $template ) ) return false;
+        
+        // Get ticket department name
+        $department = $ci->Support_model->department( $ticket->department_id );
+        $department_name = ! empty( $department ) ? $department->name : 'N/A';
+        
+        // Build ticket URL for admin view
+        $ticket_url = env_url( "admin/tickets/ticket/{$ticket_id}" );
+        
+        // Map event types to readable labels
+        $event_labels = [
+            'created'  => 'Created',
+            'replied'  => 'Replied',
+            'assigned' => 'Assigned',
+            'solved'   => 'Solved',
+            'closed'   => 'Closed',
+            'reopened' => 'Reopened'
+        ];
+        
+        $event_label = isset( $event_labels[$event_type] ) ? $event_labels[$event_type] : ucfirst( $event_type );
+        
+        $ci->load->library( 'ZMailer' );
+        
+        $status = true;
+        
+        // Send email to EACH assigned manager
+        foreach ( $managers as $manager )
+        {
+            $placeholders = [
+                '{MANAGER_NAME}'    => $manager->name,
+                '{SHOP_NAME}'       => $shop_name,
+                '{TICKET_ID}'       => $ticket_id,
+                '{TICKET_SUBJECT}'  => $ticket->subject,
+                '{TICKET_PRIORITY}' => ucfirst( $ticket->priority ),
+                '{EVENT_TYPE}'      => $event_label,
+                '{TICKET_URL}'      => $ticket_url,
+                '{SITE_NAME}'       => db_config( 'site_name' )
+            ];
+            
+            $subject = replace_placeholders( $template->subject, $placeholders );
+            $message = replace_placeholders( $template->template, $placeholders );
+            
+            if ( ! $ci->zmailer->send_email( $manager->email, $subject, $message ) )
+            {
+                $status = false;
+            }
+        }
+        
+        return $status;
+    }
+}
+
+/**
+ * Get Shop Name for a Ticket
+ *
+ * Reads the Shop Name custom field (id=3) value for a given ticket.
+ *
+ * @param  integer $ticket_id
+ * @return string
+ */
+if ( ! function_exists( 'get_ticket_shop_name' ) )
+{
+    function get_ticket_shop_name( $ticket_id )
+    {
+        $ci =& get_instance();
+        
+        $ci->db->select( 'value' );
+        $ci->db->where( 'ticket_id', $ticket_id );
+        $ci->db->where( 'custom_field_id', 3 );
+        $row = $ci->db->get( 'tickets_custom_fields' )->row();
+        
+        if ( ! empty( $row ) && ! empty( $row->value ) )
+        {
+            return $row->value;
+        }
+        
+        return '';
     }
 }

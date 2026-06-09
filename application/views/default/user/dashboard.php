@@ -133,6 +133,103 @@ $count_col = ( $this->zuser->has_permission( 'users' ) ) ? 'col-md-3' : 'col-md-
           <?php } ?>
         </div>
         <!-- /.row -->
+        
+        <!-- Recent Issues & Recent Comments -->
+        <?php if ( $this->zuser->has_permission( 'tickets' ) ) { ?>
+        <div class="row mt-3">
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-ticket-alt text-primary"></i> Recent Issues</h3>
+                <div class="card-tools">
+                  <a href="<?php echo env_url( 'admin/tickets/all' ); ?>" class="btn btn-tool btn-sm"><i class="fas fa-arrow-right"></i></a>
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <?php if ( ! empty( $recent_tickets ) ) { ?>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                      <thead><tr><th>Shop</th><th>Subject</th><th>Priority</th><th>Assigned</th><th>Age</th></tr></thead>
+                      <tbody>
+                        <?php foreach ( $recent_tickets as $rt ) {
+                          $pri_class = 'secondary';
+                          if ( $rt->priority == 'high' ) $pri_class = 'danger';
+                          else if ( $rt->priority == 'medium' ) $pri_class = 'warning';
+                          else if ( $rt->priority == 'low' ) $pri_class = 'info';
+                        ?>
+                          <tr>
+                            <td><small><?php echo html_escape( $rt->shop_name ); ?></small></td>
+                            <td>
+                              <a href="<?php echo env_url( 'admin/tickets/ticket/' . $rt->id ); ?>">
+                                <?php echo html_escape( mb_strimwidth( $rt->subject, 0, 35, '...' ) ); ?>
+                              </a>
+                            </td>
+                            <td><span class="badge badge-<?php echo $pri_class; ?>"><?php echo html_escape( $rt->priority ); ?></span></td>
+                            <td><small><?php echo ! empty( $rt->assignee_first ) ? html_escape( $rt->assignee_first ) : '<span class="text-muted">—</span>'; ?></small></td>
+                            <td>
+<?php
+                                $age_created_day = strtotime( date( 'Y-m-d', $rt->created_at ) );
+                                $age_today = strtotime( date( 'Y-m-d' ) );
+                                $age_days = intval( ( $age_today - $age_created_day ) / 86400 );
+                                if ( $rt->status == 0 ) { $age_class = 'badge-secondary'; $age_text = 'Closed'; }
+                                else if ( $age_days == 0 ) { $age_class = 'badge-success'; $age_text = 'Today'; }
+                                else if ( $age_days == 1 ) { $age_class = 'badge-success'; $age_text = '1 day ago'; }
+                                else if ( $age_days <= 3 ) { $age_class = 'badge-warning'; $age_text = $age_days . ' days ago'; }
+                                else { $age_class = 'badge-danger'; $age_text = $age_days . ' days ago'; }
+                              ?>
+                              <span class="badge <?php echo $age_class; ?>"><?php echo $age_text; ?></span>
+                            </td>
+                          </tr>
+                        <?php } ?>
+                      </tbody>
+                    </table>
+                  </div>
+                <?php } else { ?>
+                  <div class="text-center text-muted py-3">No recent issues.</div>
+                <?php } ?>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-lg-6">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-comments text-success"></i> Recent Comments</h3>
+              </div>
+              <div class="card-body p-0">
+                <?php if ( ! empty( $recent_replies ) ) { ?>
+                  <?php foreach ( $recent_replies as $rr ) { ?>
+                    <div class="px-3 py-2 border-bottom">
+                      <div class="d-flex justify-content-between">
+                        <strong class="text-sm"><?php echo html_escape( $rr->first_name . ' ' . $rr->last_name ); ?></strong>
+                        <small class="text-muted"><?php echo get_date_time_by_timezone( $rr->replied_at ); ?></small>
+                      </div>
+                      <a href="<?php echo env_url( 'admin/tickets/ticket/' . $rr->ticket_id ); ?>" class="text-sm text-muted">
+                        on Ticket #<?php echo html_escape( $rr->ticket_id ); ?> — <?php echo html_escape( mb_strimwidth( $rr->ticket_subject, 0, 35, '...' ) ); ?>
+                      </a>
+                      <?php
+                        $rr_created_day = strtotime( date( 'Y-m-d', $rr->ticket_created_at ) );
+                        $rr_today = strtotime( date( 'Y-m-d' ) );
+                        $rr_age = intval( ( $rr_today - $rr_created_day ) / 86400 );
+                        if ( $rr->ticket_status == 0 ) { $rr_cls = 'badge-secondary'; $rr_txt = 'Closed'; }
+                        else if ( $rr_age == 0 ) { $rr_cls = 'badge-success'; $rr_txt = 'Today'; }
+                        else if ( $rr_age == 1 ) { $rr_cls = 'badge-success'; $rr_txt = '1 day ago'; }
+                        else if ( $rr_age <= 3 ) { $rr_cls = 'badge-warning'; $rr_txt = $rr_age . ' days ago'; }
+                        else { $rr_cls = 'badge-danger'; $rr_txt = $rr_age . ' days ago'; }
+                      ?>
+                      <span class="badge <?php echo $rr_cls; ?> ml-1"><?php echo $rr_txt; ?></span>
+                      <p class="text-sm mb-0 mt-1"><?php echo html_escape( mb_strimwidth( $rr->message_preview, 0, 100, '...' ) ); ?></p>
+                    </div>
+                  <?php } ?>
+                <?php } else { ?>
+                  <div class="text-center text-muted py-3">No recent comments.</div>
+                <?php } ?>
+              </div>
+            </div>
+          </div>
+        </div>
+        <?php } ?>
+        
       </div>
       <!-- /.col -->
     </div>

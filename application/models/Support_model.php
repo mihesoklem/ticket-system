@@ -385,7 +385,14 @@ class Support_model extends MY_Model {
         
         if ( ! empty( $options['assigned_to'] ) )
         {
-            $data['where']['t.assigned_to'] = $options['assigned_to'];
+            if ( $options['assigned_to'] == -1 )
+            {
+                $data['where']['t.assigned_to'] = null;
+            }
+            else
+            {
+                $data['where']['t.assigned_to'] = $options['assigned_to'];
+            }
         }
         
         if ( ! empty( $options['reopened_awaiting'] ) )
@@ -1685,12 +1692,29 @@ class Support_model extends MY_Model {
         
         if ( ! empty( $options['assigned_to'] ) )
         {
-            $data['where']['t.assigned_to'] = $options['assigned_to'];
+            if ( $options['assigned_to'] == -1 )
+            {
+                $data['where']['t.assigned_to'] = null;
+            }
+            else
+            {
+                $data['where']['t.assigned_to'] = $options['assigned_to'];
+            }
         }
         
         if ( ! empty( $options['reopened_awaiting'] ) )
         {
             $data['where']['t.reopened_awaiting'] = $options['reopened_awaiting'];
+        }
+        
+        // Custom field filters (shop name and incident type)
+        if ( ! empty( $options['filter_shop'] ) )
+        {
+            $this->db->join( 'tickets_custom_fields cf_shop', "cf_shop.ticket_id = t.id AND cf_shop.custom_field_id = 3 AND cf_shop.value = '" . $this->db->escape_str( $options['filter_shop'] ) . "'", 'INNER' );
+        }
+        if ( ! empty( $options['filter_incident'] ) )
+        {
+            $this->db->join( 'tickets_custom_fields cf_type', "cf_type.ticket_id = t.id AND cf_type.custom_field_id = 2 AND cf_type.value = '" . $this->db->escape_str( $options['filter_incident'] ) . "'", 'INNER' );
         }
         
         if ( @$options['status'] !== null ) $data['where']['t.status'] = $options['status'];

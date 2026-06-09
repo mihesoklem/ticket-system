@@ -699,4 +699,70 @@ class Support extends MY_Controller {
         $data['title'] = $page_title;
         $this->load_panel_template( $data );
     }
+
+    /**
+     * Create Ticket Page (New Interface)
+     *
+     * @return void
+     */
+    /**
+     * Create Ticket Page (New Interface)
+     *
+     * @return void
+     */
+    /**
+     * Create Ticket Page (New Interface)
+     *
+     * @return void
+     */
+    /**
+     * Create Ticket Page (New Interface)
+     *
+     * @return void
+     */
+    public function create_ticket_new()
+    {
+        if ( ! $this->zuser->is_logged_in ) env_redirect( 'login' );
+        
+        check_page_authorization( 'all_tickets' );
+        
+        $this->load->model( 'User_model' );
+        $this->load->model( 'Custom_field_model' );
+        $this->load->model( 'Ticket_quick_issue_model' );
+        
+        $this->set_admin_reference( 'tickets' );
+        
+        $data['data']['departments'] = $this->Support_model->departments();
+        $data['data']['customers'] = $this->User_model->active_users();
+        $data['data']['fields'] = $this->Custom_field_model->custom_fields( 'ASC' );
+        $data['data']['form_class'] = 'form-group';
+        $data['data']['label_required_class'] = 'required';
+        $data['data']['quick_issues'] = $this->Ticket_quick_issue_model->get_all_active();
+        $data['title'] = lang( 'create_ticket' );
+        $data['view'] = 'create_ticket_new';
+        
+        $this->load_panel_template( $data );
+    }
+    
+    /**
+     * Quick Issue Buttons Page
+     *
+     * @return void
+     */
+    public function quick_issue_buttons()
+    {
+        if ( ! $this->zuser->is_logged_in ) env_redirect( 'login' );
+        
+        check_page_authorization( 'all_tickets' );
+        
+        $this->load->model( 'Ticket_quick_issue_model' );
+        
+        $this->set_admin_reference( 'tickets' );
+        
+        $data['data']['buttons'] = $this->Ticket_quick_issue_model->get_all_active();
+        $data['title'] = 'Quick Issue Buttons';
+        $data['view'] = 'quick_issue_buttons';
+        
+        $this->load_panel_template( $data );
+    }
 }

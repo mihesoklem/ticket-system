@@ -106,6 +106,41 @@
       <!-- /col -->
     </div>
     <!-- /.row -->
+    
+    <!-- Recent Comments on Your Tickets -->
+    <?php if ( ! empty( $user_recent_replies ) ) { ?>
+    <div class="row mt-4">
+      <div class="col-lg-8 offset-lg-2">
+        <div class="shadow-sm wrapper">
+          <h3 class="h5 mb-3 fw-bold border-bottom pb-2"><i class="fas fa-comments text-success"></i> Recent Comments on Your Tickets</h3>
+          <?php foreach ( $user_recent_replies as $rr ) { ?>
+            <div class="py-2 border-bottom">
+              <div class="d-flex justify-content-between">
+                <strong class="small"><?php echo html_escape( $rr->first_name . ' ' . $rr->last_name ); ?></strong>
+                <small class="text-muted"><?php echo get_date_time_by_timezone( $rr->replied_at ); ?></small>
+              </div>
+              <a href="<?php echo env_url( 'user/support/ticket/' . html_escape( $rr->ticket_id ) ); ?>" class="small text-muted">
+                Ticket #<?php echo html_escape( $rr->ticket_id ); ?> — <?php echo html_escape( mb_strimwidth( $rr->ticket_subject, 0, 40, '...' ) ); ?>
+              </a>
+              <?php
+                $u_created_day = strtotime( date( 'Y-m-d', $rr->ticket_created_at ) );
+                $u_today = strtotime( date( 'Y-m-d' ) );
+                $u_age = intval( ( $u_today - $u_created_day ) / 86400 );
+                if ( $rr->ticket_status == 0 ) { $u_cls = 'badge-secondary'; $u_txt = 'Closed'; }
+                else if ( $u_age == 0 ) { $u_cls = 'badge-success'; $u_txt = 'Today'; }
+                else if ( $u_age == 1 ) { $u_cls = 'badge-success'; $u_txt = '1 day ago'; }
+                else if ( $u_age <= 3 ) { $u_cls = 'badge-warning'; $u_txt = $u_age . ' days ago'; }
+                else { $u_cls = 'badge-danger'; $u_txt = $u_age . ' days ago'; }
+              ?>
+              <span class="badge <?php echo $u_cls; ?> ml-1"><?php echo $u_txt; ?></span>
+              <p class="small mb-0 mt-1"><?php echo html_escape( mb_strimwidth( $rr->message_preview, 0, 120, '...' ) ); ?></p>
+            </div>
+          <?php } ?>
+        </div>
+      </div>
+    </div>
+    <?php } ?>
+    
   </div>
 </div>
 <!-- /.container -->

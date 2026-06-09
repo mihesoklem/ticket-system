@@ -310,11 +310,14 @@ class Support extends MY_Controller {
         {
             if ( ! submit_gr() ) r_error_gr( 'recaptcha' );
             
+            $dept_id = intval( post( 'department' ) );
+            if ( empty( $dept_id ) ) $dept_id = 9; // Default to IT department
+            
             $data = [
                 'subject' => do_secure( post( 'subject' ) ),
                 'message' => do_secure( post( 'message' ), true ),
                 'priority' => do_secure_l( post( 'priority' ) ),
-                'department_id' => intval( post( 'department' ) ),
+                'department_id' => $dept_id,
                 'created_month_year' => date( 'n-Y' ),
                 'created_at' => time()
             ];
@@ -346,11 +349,51 @@ class Support extends MY_Controller {
             
             if ( $mcfi !== true ) r_error_gr( $mcfi );
             
+            // Area IT assignment - mandatory for area shops, auto-assign if not selected
+            $area_it_user = intval( post( 'area_it_user' ) );
+            
+            if ( empty( $area_it_user ) )
+            {
+                // Check if this shop belongs to an area with IT staff
+                $shop_name_key = intval( post( 'shop_name' ) );
+                $shop_field = $this->db->select( 'options' )->where( 'id', 3 )->get( 'custom_fields' )->row();
+                if ( ! empty( $shop_field ) )
+                {
+                    $shop_opts = array_map( 'trim', explode( ',', $shop_field->options ) );
+                    $selected_shop = isset( $shop_opts[$shop_name_key] ) ? $shop_opts[$shop_name_key] : '';
+                    
+                    if ( ! empty( $selected_shop ) && strpos( $selected_shop, ' - ' ) !== false )
+                    {
+                        $area_prefix = trim( explode( ' - ', $selected_shop )[0] );
+                        
+                        $this->load->model( 'Area_it_model' );
+                        $area_staff = $this->Area_it_model->get_staff_by_prefix( $area_prefix );
+                        
+                        if ( ! empty( $area_staff ) )
+                        {
+                            // Auto-assign to first available IT staff for this area
+                            $area_it_user = $area_staff[0]->user_id;
+                        }
+                    }
+                }
+            }
+            
+            if ( ! empty( $area_it_user ) )
+            {
+                $data['assigned_to'] = $area_it_user;
+            }
+            
             $id = $this->Support_model->add_ticket( $data );
             
             if ( ! empty( $id ) )
             {
                 log_ticket_activity( 'ticket_created_user', $id );
+                
+                // Log assignment activity if area IT was selected
+                if ( ! empty( $area_it_user ) )
+                {
+                    log_ticket_activity( 'ticket_assigned', $id, $area_it_user );
+                }
                 
                 manage_custom_field_input( $id );
                 
@@ -392,7 +435,54 @@ class Support extends MY_Controller {
                     $text_type = 'lang';
                 }
                 
+                
+                // Fetch complete ticket data with all details before sending email
+                $ticket_data = $this->Support_model->ticket( $id );
+                
+                // Send confirmation email to registered user
+                send_user_ticket_confirmation( $this->user_id, $id, $ticket_data );
                 inform_department_users( $department, $id );
+
+                // Notify area manager
+                notify_area_manager( $id, 'created' );
+                
+                // Send assignment email to the Area IT person
+                if ( ! empty( $area_it_user ) && is_email_settings_filled() )
+                {
+                    $this->load->model( 'User_model' );
+                    $it_user = $this->User_model->get_by_id( $area_it_user );
+                    
+                    if ( ! empty( $it_user ) && is_notifications_enabled( $area_it_user ) )
+                    {
+                        $hook = 'ticket_assigned';
+                        $language = get_user_closer_language( $it_user->language );
+                        $tpl = $this->Tool_model->email_template_by_hook_and_lang( $hook, $language );
+                        
+                        if ( ! empty( $tpl ) )
+                        {
+                            $this->db->select( 'subject, priority, message' );
+                            $this->db->where( 'id', $id );
+                            $t_info = $this->db->get( 'tickets' )->row();
+                            
+                            $assign_placeholders = [
+                                '{USER_NAME}' => $it_user->first_name . ' ' . $it_user->last_name,
+                                '{TICKET_URL}' => env_url( "admin/tickets/ticket/{$id}" ),
+                                '{TICKET_ID}' => $id,
+                                '{TICKET_SUBJECT}' => ! empty( $t_info->subject ) ? $t_info->subject : '',
+                                '{TICKET_PRIORITY}' => ! empty( $t_info->priority ) ? ucfirst( $t_info->priority ) : '',
+                                '{TICKET_MESSAGE}' => ! empty( $t_info->message ) ? $t_info->message : '',
+                                '{SHOP_NAME}' => get_ticket_shop_name( $id ),
+                                '{SITE_NAME}' => db_config( 'site_name' )
+                            ];
+                            
+                            $assign_subject = replace_placeholders( $tpl->subject, $assign_placeholders );
+                            $assign_message = replace_placeholders( $tpl->template, $assign_placeholders );
+                            
+                            $this->load->library( 'ZMailer' );
+                            $this->zmailer->send_email( $it_user->email_address, $assign_subject, $assign_message );
+                        }
+                    }
+                }
                 
                 r_s_jump( $slug, $suc, $text_type );
             }
@@ -483,9 +573,12 @@ class Support extends MY_Controller {
                 
                 if ( $assigned_to != null )
                 {
-                    send_reply_notification( $assigned_to, $ticket_id, $id, 'user' );
+                    send_reply_notification( $assigned_to, $ticket_id, $id, 'user', $this->user_id );
                 }
                 
+
+                // Notify area manager
+                notify_area_manager( $ticket_id, 'replied' );
                 if ( ! empty( $_FILES ) )
                 {
                     $this->load->library( 'ZFiles' );
@@ -566,6 +659,9 @@ class Support extends MY_Controller {
             }
                 
             log_ticket_activity( 'ticket_reopened_user', $id );
+
+                // Notify area manager
+                notify_area_manager( $id, 'reopened' );
             r_s_jump( $url, 'ticket_reopened' );
         }
         
@@ -581,7 +677,14 @@ class Support extends MY_Controller {
     {
         $security_key = do_secure( post( 'security_key' ) );
         $id = intval( post( 'id' ) );
+        $closing_reply = trim( post( 'closing_reply' ) );
         $closed_by = '';
+        
+        // Closing reply is mandatory
+        if ( empty( $closing_reply ) )
+        {
+            r_error( 'reply_required_before_close' );
+        }
         
         if ( ! empty( $security_key ) )
         {
@@ -597,6 +700,19 @@ class Support extends MY_Controller {
         
         if ( empty( $data ) ) r_error( 'invalid_req' );
         
+        // Save the closing reply
+        $reply_user_id = ! empty( $security_key ) ? null : $this->user_id;
+        $reply_data = [
+            'ticket_id' => $id,
+            'user_id' => $reply_user_id,
+            'message' => do_secure( $closing_reply, true ),
+            'attachment' => '',
+            'attachment_name' => '',
+            'replied_at' => time()
+        ];
+        
+        $reply_id = $this->Support_model->add_reply( $reply_data );
+        
         if ( $this->Support_model->close_ticket( $id, $closed_by ) )
         {
             if ( ! empty( $security_key ) )
@@ -608,7 +724,17 @@ class Support extends MY_Controller {
                 $url = "user/support/ticket/{$id}";
             }
             
+            log_ticket_activity( 'ticket_replied_user', $id );
             log_ticket_activity( 'ticket_closed_user', $id );
+            
+            // Notify assigned IT
+            if ( ! empty( $data->assigned_to ) && ! empty( $reply_id ) )
+            {
+                send_reply_notification( $data->assigned_to, $id, $reply_id, 'user', $reply_user_id );
+            }
+
+            // Notify area manager
+            notify_area_manager( $id, 'closed' );
             r_s_jump( $url, 'ticket_closed' );
         }
         

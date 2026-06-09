@@ -280,12 +280,7 @@
         </ul>
         <div class="text-center border-top mt-3">
           <?php if ( $ticket->status != 0 ) { ?>
-            <form class="z-form pt-3 d-inline-block" method="post" action="<?php user_action( 'support/close_ticket' ); ?>" data-csrf="manual">
-              <div class="response-message"></div>
-              <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-              <button type="submit" class="btn btn-wide btn-outline-danger mt-1"><?php echo lang( 'close_ticket' ); ?></button>
-              <input type="hidden" name="id" value="<?php echo html_escape( $ticket->id ); ?>">
-            </form>
+            <button class="btn btn-wide btn-outline-danger mt-1 pt-3" data-toggle="modal" data-target="#user-close-ticket-modal"><?php echo lang( 'close_ticket' ); ?></button>
           <?php } else if ( db_config( 'sp_allow_ticket_reopen' ) ) { ?>
             <form class="z-form pt-3 d-inline-block" method="post" action="<?php user_action( 'support/reopen_ticket' ); ?>" data-csrf="manual">
               <div class="response-message"></div>
@@ -309,3 +304,30 @@
 <!-- /.container -->
 
 <?php load_modals( ['user/ticket_attachments'] ); ?>
+<!-- User Close Ticket Modal -->
+<div class="modal fade" id="user-close-ticket-modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form class="z-form" method="post" action="<?php user_action( 'support/close_ticket' ); ?>" data-csrf="manual">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+        <input type="hidden" name="id" value="<?php echo html_escape( $ticket->id ); ?>">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">Close Ticket #<?php echo html_escape( $ticket->id ); ?></h5>
+          <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="response-message"></div>
+          <p class="text-muted">Please leave a comment before closing this ticket.</p>
+          <div class="form-group">
+            <label class="font-weight-bold">Closing Comment <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="closing_reply" rows="4" required placeholder="e.g. Issue has been resolved. Thank you for the support."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Close Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

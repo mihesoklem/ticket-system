@@ -106,3 +106,4 @@ $lang['err_options_req']            = 'The Options field is required for the sel
 
 // Ticket Notes:
 $lang['err_note_required_close']   = 'Please add a note explaining the resolution before closing this ticket.';
+$lang['err_reply_required_before_close']   = 'Please reply to the user explaining what was done before closing or solving this ticket.';

@@ -79,6 +79,31 @@ class Dashboard extends MY_Controller {
                 admin_lte_asset( 'plugins/chart.js/Chart.min.js', true ),
                 get_assets_path( 'panel/js/chartjs_script.js' )
             ];
+            
+            // Recent tickets (last 7)
+            $data['data']['recent_tickets'] = $this->db->query("
+                SELECT t.id, t.subject, t.priority, t.status, t.sub_status, t.created_at,
+                       cf.value as shop_name,
+                       u.first_name as assignee_first, u.last_name as assignee_last
+                FROM tickets t
+                LEFT JOIN tickets_custom_fields cf ON cf.ticket_id = t.id AND cf.custom_field_id = 3
+                LEFT JOIN users u ON u.id = t.assigned_to
+                ORDER BY t.id DESC LIMIT 7
+            ")->result();
+            
+            // Recent replies (last 7)
+            $data['data']['recent_replies'] = $this->db->query("
+                SELECT r.ticket_id, r.replied_at,
+                       LEFT(REGEXP_REPLACE(r.message, '<[^>]+>', ''), 100) as message_preview,
+                       u.first_name, u.last_name,
+                       t.subject as ticket_subject,
+                       t.created_at as ticket_created_at,
+                       t.status as ticket_status
+                FROM tickets_replies r
+                LEFT JOIN users u ON u.id = r.user_id
+                LEFT JOIN tickets t ON t.id = r.ticket_id
+                ORDER BY r.id DESC LIMIT 7
+            ")->result();
         }
         else if ( $type === 'user' )
         {
@@ -95,6 +120,21 @@ class Dashboard extends MY_Controller {
                 'user_id' => $this->zuser->get( 'id' ),
                 'limit' => 5
             ]);
+            
+            // Recent replies on user's tickets
+            $uid = $this->zuser->get( 'id' );
+            $data['data']['user_recent_replies'] = $this->db->query("
+                SELECT r.ticket_id, r.replied_at,
+                       LEFT(REGEXP_REPLACE(r.message, '<[^>]+>', ''), 100) as message_preview,
+                       u.first_name, u.last_name,
+                       t.subject as ticket_subject,
+                       t.created_at as ticket_created_at,
+                       t.status as ticket_status
+                FROM tickets_replies r
+                LEFT JOIN users u ON u.id = r.user_id
+                JOIN tickets t ON t.id = r.ticket_id AND t.user_id = {$uid}
+                ORDER BY r.id DESC LIMIT 7
+            ")->result();
         }
         else
         {
