@@ -1,5 +1,4 @@
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,12 +6,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node
 node_modules
 dist
 dist-ssr
-#*.local
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,16 +21,33 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Qodo
 .qodo
 
 # Convex
 .convex/
 
-# Environment files
+# Environment
 .env.local
 .env
 .env.production
-
-# WorkOS
-.workos/
 debug.md
+
+# === TICKET SYSTEM SECURITY ===
+# Ignore user uploads
+uploads/*
+!uploads/.gitkeep
+
+# Ignore test/debug files
+test_*.php
+fix_*.php
+retail/
+*.sql
+
+# Ignore backup files
+*.bak
+*.backup
+
+# Note: database.php and config.php are already tracked
+# To remove them from git: git rm --cached application/config/database.php
