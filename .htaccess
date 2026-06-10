@@ -2,6 +2,8 @@
   Options -Indexes
   
   RewriteEngine On
+# Block access to .git directory
+RewriteRule "^.git" - [F,L]
   
   # Exclude phpMyAdmin and adminer from rewrite rules
   RewriteCond %{REQUEST_URI} ^/(tkbase) [NC]
